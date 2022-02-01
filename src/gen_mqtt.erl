@@ -311,8 +311,8 @@ connected(disconnect, State=#state{transport={Transport, _}, sock=Sock}) ->
     send_disconnect(Transport, Sock),
     {stop, normal, State};
 
-connected(maybe_reconnect, State) ->
-    maybe_reconnect(on_disconnect, [], State);
+% connected(maybe_reconnect, State) -> {stop, normal, State};
+%     % maybe_reconnect(on_disconnect, [], State);
 
 connected(_Event, State) ->
     {stop, unknown_event, State}.
@@ -404,17 +404,17 @@ handle_frame(waiting_for_connack, #mqtt_connack{return_code=ReturnCode}, State0)
             NewInfoFun = call_info_fun({connack_in, ClientId}, InfoFun),
             State1 = resume_wacks_retry(State0),
             State2 = maybe_publish_offline_msgs(State1),
-            wrap_res(connected, on_connect, [], start_ping_timer(State2#state{info_fun=NewInfoFun}));
-        ?CONNACK_PROTO_VER ->
-            maybe_reconnect(on_connect_error, [wrong_protocol_version], State0);
-        ?CONNACK_INVALID_ID ->
-            maybe_reconnect(on_connect_error, [invalid_id], State0);
-        ?CONNACK_SERVER ->
-            maybe_reconnect(on_connect_error, [server_not_available], State0);
-        ?CONNACK_CREDENTIALS ->
-            maybe_reconnect(on_connect_error, [invalid_credentials], State0);
-        ?CONNACK_AUTH ->
-            maybe_reconnect(on_connect_error, [not_authorized], State0)
+            wrap_res(connected, on_connect, [], start_ping_timer(State2#state{info_fun=NewInfoFun}))
+        % ?CONNACK_PROTO_VER ->
+        %     % maybe_reconnect(on_connect_error, [wrong_protocol_version], State0);
+        % ?CONNACK_INVALID_ID ->
+        %     % maybe_reconnect(on_connect_error, [invalid_id], State0);
+        % ?CONNACK_SERVER ->
+        %     % maybe_reconnect(on_connect_error, [server_not_available], State0);
+        % ?CONNACK_CREDENTIALS ->
+        %     % maybe_reconnect(on_connect_error, [invalid_credentials], State0);
+        % ?CONNACK_AUTH ->
+        %     % maybe_reconnect(on_connect_error, [not_authorized], State0)
     end;
 
 handle_frame(connected, #mqtt_suback{message_id=MsgId, qos_table=QoSTable}, State0) ->
@@ -619,9 +619,9 @@ send_ping(Transport, Sock) ->
 send_frame(Transport, Sock, Frame) ->
     case Transport:send(Sock, vmq_parser:serialise(Frame)) of
         ok ->
-            ok;
-        {error, _} ->
-            gen_fsm:send_event(self(), maybe_reconnect)
+            ok
+        % {error, _} ->
+        %     gen_fsm:send_event(self(), maybe_reconnect)
     end.
 
 maybe_reconnect(Fun, Args, #state{client=ClientId, reconnect_timeout=Timeout, transport={Transport,_}, info_fun=InfoFun} = State) ->
